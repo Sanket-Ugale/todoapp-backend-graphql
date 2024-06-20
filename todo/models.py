@@ -1,6 +1,15 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from todo.manager import UserManager
 
-# Create todo models here.
+class User(AbstractUser):
+    username=None
+    email=models.EmailField(unique=True)
+
+    USERNAME_FIELD= 'email'
+    REQUIRED_FIELDS=[]
+    objects=UserManager()
+    
 class TodoItem(models.Model):
     title=models.CharField(max_length=100)
     content = models.TextField()

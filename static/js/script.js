@@ -1,134 +1,132 @@
-const todoList = document.getElementById('todoList');
-const todoForm = document.getElementById('todoForm');
-const todoTitle = document.getElementById('todoTitle');
-const todoContent = document.getElementById('todoContent');
-const saveTodo = document.getElementById('saveTodo');
-const todoModal = new bootstrap.Modal(document.getElementById('todoModal'));
+$(document).ready(function() {
+    const apiUrl = 'http://127.0.0.1/api/';
 
-let todos = [];
-let currentTodo = null;
-
-// Load todos from the server
-fetch('/api/')
-    .then(response => response.json())
-    .then(data => {
-        todos = data;
-        renderTodos();
-    })
-    .catch(error => console.error('Error:', error));
-
-// Render todos
-function renderTodos() {
-    todoList.innerHTML = '';
-    todos.forEach(todo => {
-        const li = document.createElement('li');
-        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
-        li.innerHTML = `
-            <span>${todo.title}</span>
-            <div>
-                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#todoModal" onclick="editTodo(${todo.id})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteTodo(${todo.id})">Delete</button>
-            </div>
-        `;
-        todoList.appendChild(li);
-    });
-}
-
-// Add or update todo
-saveTodo.addEventListener('click', () => {
-    const title = todoTitle.value.trim();
-    const content = todoContent.value.trim();
-
-    if (title && content) {
-        if (currentTodo) {
-            // Update existing todo
-            fetch('/api/', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id: currentTodo.id,
-                    title: title,
-                    content: content,
-                    status: false
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    currentTodo.title = title;
-                    currentTodo.content = content;
-                    currentTodo = null;
-                    renderTodos();
-                    todoModal.hide();
-                    clearForm();
-                } else {
-                    console.error('Error:', data.error);
+    // Function to get the CSRF token from the cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
-            })
-            .catch(error => console.error('Error:', error));
-        } else {
-            // Add new todo
-            fetch('/api/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    title: title,
-                    content: content
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    todos.push({ id: Date.now(), title: title, content: content, status: false });
-                    renderTodos();
-                    todoModal.hide();
-                    clearForm();
-                } else {
-                    console.error('Error:', data.error);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+            }
         }
+        return cookieValue;
     }
-});
 
-// Edit todo
-function editTodo(id) {
-    currentTodo = todos.find(todo => todo.id === id);
-    todoTitle.value = currentTodo.title;
-    todoContent.value = currentTodo.content;
-    todoModal.show();
-}
+    const csrftoken = getCookie('csrftoken');
 
-// Delete todo
-function deleteTodo(id) {
-    fetch('/api/', {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id: id
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            todos = todos.filter(todo => todo.id !== id);
-            renderTodos();
-        } else {
-            console.error('Error:', data.error);
+    // Setup AJAX to include CSRF token in the headers
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                // Only send the token to relative URLs i.e. locally.
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
         }
-    })
-    .catch(error => console.error('Error:', error));
-}
+    });
 
-// Clear form
-function clearForm() {
-    todoTitle.value = '';
-    todoContent.value = '';
-}
+    function fetchTodos() {
+        $.ajax({
+            url: apiUrl,
+            method: 'GET',
+            success: function(data) {
+                $('#todoList').empty();
+                data.forEach(function(todo) {
+                    const todoItem = `<div class="list-group-item list-group-item-action flex-column align-items-start" data-id="${todo.id}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">${todo.title}</h5>
+                            <small>Status: ${todo.status ? 'Complete' : 'Incomplete'}</small>
+                        </div>
+                        <p class="mb-1">${todo.content}</p>
+                        <button class="btn btn-sm btn-warning updateTodoBtn">Update</button>
+                        <button class="btn btn-sm btn-danger deleteTodoBtn">Delete</button>
+                    </div>`;
+                    $('#todoList').append(todoItem);
+                });
+            },
+            error: function(error) {
+                console.error('Error fetching To-Dos:', error);
+            }
+        });
+    }
+
+    fetchTodos();
+
+    $('#addTodoForm').submit(function(e) {
+        e.preventDefault();
+        const title = $('#addTodoTitle').val();
+        const content = $('#addTodoContent').val();
+        $.ajax({
+            url: apiUrl,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ title: title, content: content }),
+            success: function(response) {
+                $('#addTodoModal').modal('hide');
+                fetchTodos();
+            },
+            error: function(error) {
+                console.error('Error adding To-Do:', error);
+            }
+        });
+    });
+
+    $(document).on('click', '.updateTodoBtn', function() {
+        const todoItem = $(this).closest('.list-group-item');
+        const id = todoItem.data('id');
+        const title = todoItem.find('h5').text();
+        const content = todoItem.find('p').text();
+        const status = todoItem.find('small').text().includes('Complete');
+
+        $('#updateTodoId').val(id);
+        $('#updateTodoTitle').val(title);
+        $('#updateTodoContent').val(content);
+        $('#updateTodoStatus').val(status);
+
+        $('#updateTodoModal').modal('show');
+    });
+
+    $('#updateTodoForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#updateTodoId').val();
+        const title = $('#updateTodoTitle').val();
+        const content = $('#updateTodoContent').val();
+        const status = $('#updateTodoStatus').val() === 'true';
+
+        $.ajax({
+            url: apiUrl,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ id: id, title: title, content: content, status: status }),
+            success: function(response) {
+                $('#updateTodoModal').modal('hide');
+                fetchTodos();
+            },
+            error: function(error) {
+                console.error('Error updating To-Do:', error);
+            }
+        });
+    });
+
+    $(document).on('click', '.deleteTodoBtn', function() {
+        const id = $(this).closest('.list-group-item').data('id');
+
+        $.ajax({
+            url: apiUrl,
+            method: 'DELETE',
+            contentType: 'application/json',
+            data: JSON.stringify({ id: id }),
+            success: function(response) {
+                fetchTodos();
+            },
+            error: function(error) {
+                console.error('Error deleting To-Do:', error);
+            }
+        });
+    });
+});
