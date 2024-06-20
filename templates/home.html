@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #343a40;
+            color: white;
+        }
+        .modal-content {
+            background-color: #495057;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">To-Do App</h1>
+        <div class="text-right mb-3">
+            <button class="btn btn-primary" data-toggle="modal" data-target="#addTodoModal">Add To-Do</button>
+        </div>
+        <div id="todoList" class="list-group">
+            <!-- To-Do items will be appended here dynamically -->
+        </div>
+    </div>
+
+    <!-- Add To-Do Modal -->
+    <div class="modal fade" id="addTodoModal" tabindex="-1" aria-labelledby="addTodoModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addTodoModalLabel">Add To-Do</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addTodoForm">
+                        <div class="form-group">
+                            <label for="addTodoTitle">Title</label>
+                            <input type="text" class="form-control" id="addTodoTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="addTodoContent">Content</label>
+                            <textarea class="form-control" id="addTodoContent" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add To-Do</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update To-Do Modal -->
+    <div class="modal fade" id="updateTodoModal" tabindex="-1" aria-labelledby="updateTodoModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateTodoModalLabel">Update To-Do</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateTodoForm">
+                        <input type="hidden" id="updateTodoId">
+                        <div class="form-group">
+                            <label for="updateTodoTitle">Title</label>
+                            <input type="text" class="form-control" id="updateTodoTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="updateTodoContent">Content</label>
+                            <textarea class="form-control" id="updateTodoContent" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="updateTodoStatus">Status</label>
+                            <select class="form-control" id="updateTodoStatus" required>
+                                <option value="false">Incomplete</option>
+                                <option value="true">Complete</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update To-Do</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const apiUrl = 'http://127.0.0.1/api/';
+        
+            // Function to get the CSRF token from the cookie
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        
+            const csrftoken = getCookie('csrftoken');
+        
+            // Setup AJAX to include CSRF token in the headers
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                    if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                        // Only send the token to relative URLs i.e. locally.
+                        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                    }
+                }
+            });
+        
+            function fetchTodos() {
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        $('#todoList').empty();
+                        data.forEach(function(todo) {
+                            const todoItem = `<div class="list-group-item list-group-item-action flex-column align-items-start" data-id="${todo.id}">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">${todo.title}</h5>
+                                    <small>Status: ${todo.status ? 'Complete' : 'Incomplete'}</small>
+                                </div>
+                                <p class="mb-1">${todo.content}</p>
+                                <button class="btn btn-sm btn-warning updateTodoBtn">Update</button>
+                                <button class="btn btn-sm btn-danger deleteTodoBtn">Delete</button>
+                            </div>`;
+                            $('#todoList').append(todoItem);
+                        });
+                    },
+                    error: function(error) {
+                        console.error('Error fetching To-Dos:', error);
+                    }
+                });
+            }
+        
+            fetchTodos();
+        
+            $('#addTodoForm').submit(function(e) {
+                e.preventDefault();
+                const title = $('#addTodoTitle').val();
+                const content = $('#addTodoContent').val();
+                $.ajax({
+                    url: apiUrl,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ title: title, content: content }),
+                    success: function(response) {
+                        $('#addTodoModal').modal('hide');
+                        fetchTodos();
+                    },
+                    error: function(error) {
+                        console.error('Error adding To-Do:', error);
+                    }
+                });
+            });
+        
+            $(document).on('click', '.updateTodoBtn', function() {
+                const todoItem = $(this).closest('.list-group-item');
+                const id = todoItem.data('id');
+                const title = todoItem.find('h5').text();
+                const content = todoItem.find('p').text();
+                const status = todoItem.find('small').text().includes('Complete');
+        
+                $('#updateTodoId').val(id);
+                $('#updateTodoTitle').val(title);
+                $('#updateTodoContent').val(content);
+                $('#updateTodoStatus').val(status);
+        
+                $('#updateTodoModal').modal('show');
+            });
+        
+            $('#updateTodoForm').submit(function(e) {
+                e.preventDefault();
+                const id = $('#updateTodoId').val();
+                const title = $('#updateTodoTitle').val();
+                const content = $('#updateTodoContent').val();
+                const status = $('#updateTodoStatus').val() === 'true';
+        
+                $.ajax({
+                    url: apiUrl,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ id: id, title: title, content: content, status: status }),
+                    success: function(response) {
+                        $('#updateTodoModal').modal('hide');
+                        fetchTodos();
+                    },
+                    error: function(error) {
+                        console.error('Error updating To-Do:', error);
+                    }
+                });
+            });
+        
+            $(document).on('click', '.deleteTodoBtn', function() {
+                const id = $(this).closest('.list-group-item').data('id');
+        
+                $.ajax({
+                    url: apiUrl,
+                    method: 'DELETE',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ id: id }),
+                    success: function(response) {
+                        fetchTodos();
+                    },
+                    error: function(error) {
+                        console.error('Error deleting To-Do:', error);
+                    }
+                });
+            });
+        });
+        
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+{% comment %} views.py
+from django.shortcuts import render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from todo.models import TodoItem
+from todo.serializers import TodoSerializer
+
+def homeView(request):
+    return render(request, 'home.html')
+
+class todoView(APIView):
+    def get(self, request):
+        try:
+            # get all the todo items from the database through TodoSerializer
+            todo_items = TodoItem.objects.all()
+            serializer = TodoSerializer(todo_items, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)})
+        
+    def post(self, request):
+        try:
+            # get the data from the request
+            data = request.data
+            print(data)
+            # create a new todo item
+            todo_item = TodoItem.objects.create(title=data['title'], content=data['content'])
+            # save the todo item
+            todo_item.save()
+            return Response({'success': 'Todo created successfully'})
+        except Exception as e:
+            return Response({'error': str(e)})
+        
+    def put(self, request):
+        try:
+            # get the data from the request
+            data = request.data
+            # get the todo item by id
+            todo_item = TodoItem.objects.get(id=data['id'])
+            # update the todo item
+            todo_item.title = data['title']
+            todo_item.content = data['content']
+            todo_item.status = data['status']
+            # save the todo item
+            todo_item.save()
+            return Response({'success': 'Todo updated successfully'})
+        except Exception as e:
+            return Response({'error': str(e)})
+        
+    def delete(self, request):
+        try:
+            # get the data from the request
+            data = request.data
+            # get the todo item by id
+            todo_item = TodoItem.objects.get(id=data['id'])
+            # delete the todo item
+            todo_item.delete()
+            return Response({'success': 'Todo deleted successfully'})
+        except Exception as e:
+            return Response({'error': str(e)})
+
+        # return render(request, 'todo.html')
+
+url: http://127.0.0.1/api/
+json format for put method
+{
+    "id": 3,
+    "title": "Task 2",
+    "content": "Content of task 2",
+    "status": true
+}
+
+json format for post method
+{
+    "title": "Task 2",
+    "content": "Content of task 2"
+}
+json format for delete method
+{
+    "id": 1
+}
+
+
+using above code generate html and javascript code for todo app which will show form form popup for add and update todo and by default will show list of todo with update and delete button
+use dark theme and bootstrap  {% endcomment %}
