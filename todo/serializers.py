@@ -1,7 +1,7 @@
 # serializer to convert the model data into json format of todo model
 
 from rest_framework import serializers
-from .models import TodoItem
+from .models import TodoItem, TodoPermission
 from django.contrib.auth import get_user_model
 User=get_user_model()
 
@@ -19,4 +19,9 @@ class UserSerializer(serializers.ModelSerializer):
 class TodoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TodoItem
+        fields = '__all__'
+
+class TodoPermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TodoPermission
         fields = '__all__'

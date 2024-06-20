@@ -11,6 +11,7 @@ class User(AbstractUser):
     objects=UserManager()
     
 class TodoItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     title=models.CharField(max_length=100)
     content = models.TextField()
     todo_date = models.DateTimeField(auto_now_add=True)
@@ -19,3 +20,13 @@ class TodoItem(models.Model):
     
     def __str__(self):
         return self.content
+    
+class TodoPermission(models.Model):
+    owner_user = models.ForeignKey(User, on_delete=models.CASCADE)
+    access_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='access_user')
+    todo = models.ForeignKey(TodoItem, on_delete=models.CASCADE)
+    url_slug = models.CharField(max_length=100, primary_key=True)
+    permission = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return self.permission
