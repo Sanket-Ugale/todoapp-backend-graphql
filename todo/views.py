@@ -13,7 +13,6 @@ from rest_framework.decorators import api_view
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from .models import TodoItem, TodoPermission
-from .serializers import TodoPermissionSerializer
 import uuid
 
 User=get_user_model()
