@@ -11,4 +11,6 @@ urlpatterns = [
     path('api/todos/', views.TodoView.as_view(), name='todo_view'),
     path('api/share-todo/', views.ShareTodoView.as_view(), name='share_todo'),
     path('api/shared-todo/<str:slug>/', views.SharedTodoView.as_view(), name='shared_todo'),
+    # path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
+
 ]
