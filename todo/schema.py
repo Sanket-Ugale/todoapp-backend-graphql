@@ -38,7 +38,7 @@ class SignUp(graphene.Mutation):
         password = graphene.String(required=True)
 
     def mutate(self, info, email, password):
-        user = User.objects.create_user(username=email, email=email, password=password)
+        user = User.objects.create_user(email=email, password=password)
         token = get_token(user)
         create_refresh_token(user)
         return SignUp(user=user, token=token)
@@ -71,7 +71,9 @@ class CreateTodoItem(graphene.Mutation):
 
     @login_required
     def mutate(self, info, title, content):
-        user = info.context.user
+        print(f"🚀 {info}")
+        user ="sanketugale2003@gmail.com"
+        print(f"❤️ {user}")
         todo_item = TodoItem.objects.create(user=user, title=title, content=content)
         return CreateTodoItem(todo=todo_item)
 
